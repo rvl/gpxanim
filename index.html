@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Map tracker</title>
+    <link rel="stylesheet" href="theme/default/style.css" type="text/css">
+    <link rel="stylesheet" href="theme/default/google.css" type="text/css">
+    <link rel="stylesheet" href="style.css" type="text/css">
+    <script src="jquery-1.7.2.min.js"></script>
+    <script type="text/javascript" src="OpenLayers.js"></script>
+
+    <!--<script src="http://www.openlayers.org/api/OpenLayers.js"></script>-->
+    <script src="OpenStreetMap.js"></script>
+    <script src="http://maps.google.com/maps/api/js?v=3.5&amp;sensor=false"></script>
+
+    <script type="text/javascript" src="animate.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function() {
+        Animate.ready_basic();
+      });
+    </script>
+
+  </head>
+  <body>
+    <h1 id="title">Map tracker</h1>
+
+    <div class="clipper">
+      <div id="map" class="rotated"></div>
+    </div>
+
+    <div>Speed: <span id="speed"></span></div>
+
+    <div class="buttons">
+      <a href="#" id="start-btn">Start</a>
+      <a href="#" id="stop-btn">Stop</a>
+    </div>
+
+    <div id="player"></div>
+
+    <div id="docs">
+    </div>
+  </body>
+</html>
