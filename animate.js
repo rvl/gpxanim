@@ -21,21 +21,26 @@ var Animate = (function($) {
   trackurl = urlparams.track || "track.gpx";
   baselayer = urlparams.layer || "M";
   zoom = parseInt(urlparams.z) || 14;
-  step = parseInt(urlparams.step) || 1000; // number of ms to advance each frame
+  step = parseFloat(urlparams.step) || 1000; // number of ms to advance each frame
   interval = parseInt(urlparams.interval) || step; // ms interval between updates
   skip = parseInt(urlparams.skip) || 0;
   embed = urlparams.embed || false;
+  width = urlparams.width || 640;
+  height = urlparams.height || 360;
+  pilot = parseInt(urlparams.pilot) ? true : false;
+  track_colour = urlparams.track_colour || "#69C";
+  pilot_colour = urlparams.pilot_colour || "#808080";
 
-  var create_gpx_layer = function(name, url) {
+  var create_gpx_layer = function(name, url, colour) {
     var lgpx = new OpenLayers.Layer.GML(name, url, {
       format: OpenLayers.Format.GPX,
-      style: {strokeColor: "green", strokeWidth: 5, strokeOpacity: 0.5},
+      style: {strokeColor: colour, strokeWidth: 5, strokeOpacity: 0.5},
       projection: new OpenLayers.Projection("EPSG:4326")
     });
     return lgpx;
   };
 
-  var create_animate_layer = function(name, url) {
+  var create_animate_layer = function(name, url, colour) {
     var lgpx = new OpenLayers.Layer.Vector.Animate(name, url, {
       strategies: [
         new OpenLayers.Strategy.Fixed(),
@@ -54,7 +59,7 @@ var Animate = (function($) {
 	  extractWaypoints: false
         })
       }),
-      style: {strokeColor: "red", strokeWidth: 1, strokeOpacity: 1.0},
+      style: {strokeColor: colour, strokeWidth: 5, strokeOpacity: 0.6},
       projection: new OpenLayers.Projection("EPSG:4326")
     });
 
@@ -63,8 +68,8 @@ var Animate = (function($) {
 
   var map_init = function(){
     var layermap = { "M": 0, "C": 1, "G": 3, "Q": 2 };
-    gpx_layer = create_gpx_layer("Track", trackurl);
-    animate_layer = create_animate_layer("Animation", trackurl);
+    gpx_layer = create_gpx_layer("Track", trackurl, pilot_colour);
+    animate_layer = create_animate_layer("Animation", trackurl, track_colour);
     map = new OpenLayers.Map("map", {
       controls: [
         new OpenLayers.Control.Navigation()
@@ -76,12 +81,19 @@ var Animate = (function($) {
         new OpenLayers.Layer.OSM.MapQuest("MapQuest-OSM"),
         new OpenLayers.Layer.Google("Google Streets",
                                     {numZoomLevels: 20}),
-        gpx_layer,
-        animate_layer
       ]
     });
 
+    if (pilot) {
+      map.addLayer(gpx_layer);
+    }
+
+    map.addLayer(animate_layer);
+
     map.setBaseLayer(map.layers[layermap[baselayer] || 0]);
+
+    map.baseLayer.events.on({ loadstart: baselayer_loadstart,
+                              loadend: baselayer_loadend });
 
     gpx_layer.events.register('loadend', gpx_layer, function() {
       var bounds = this.getDataExtent();
@@ -144,12 +156,39 @@ var Animate = (function($) {
     map_init();
     setup_buttons();
     setup_embed(embed);
-    setup_size(640, 360);
+    setup_size(width, height);
   };
 
   var send = function(msg, object) {
     document.title = "null";
     document.title = JSON.stringify({ msg: msg, object: object });
+  };
+
+  var tiles_loading = false;
+  var queue_frame = false;
+
+  var baselayer_loadstart = function() {
+    //console.log("baselayer: loadstart");
+    tiles_loading = true;
+  };
+
+  var baselayer_loadend = function() {
+    //console.log("baselayer: loadend");
+    tiles_loading = false;
+    if (queue_frame) {
+      send("frame");
+      queue_frame = false;
+    }
+  };
+
+  var send_frame = function() {
+    var layer = map.baseLayer;
+    if (layer.numLoadingTiles == 0) {
+      send("frame");
+    } else {
+      console.log("waiting for " + layer.numLoadingTiles + " tiles to load");
+      queue_frame = true;
+    }
   };
 
   return {
@@ -159,11 +198,11 @@ var Animate = (function($) {
       animate_layer.start();
     },
     advance: function() {
-      if (!animate_layer.advance()) {
+      animate_layer.advance(function() {
+        send_frame();
+      }, function() {
         send("finished");
-      } else {
-        send("frame");
-      }
+      });
     }
   };
 })(jQuery);
@@ -177,23 +216,39 @@ OpenLayers.Layer.Vector.Animate = OpenLayers.Class(OpenLayers.Layer.Vector, {
 
   setup: function() {
     this.strat = this.strategies[1]; // fixme: dumb
+    this.strat.frame_num = 0;
     this.strat.time = this.strat.min_time;
     this.strat.time += this.strat.skip;
     this.strat.animate();
   },
 
-  advance: function() {
-    var strat = this.strat;
-    strat.time += strat.step;
-    if (strat.time > strat.max_time) {
-      return false;
-    } else {
-      strat.animate();
-      this.map.setCenter(new OpenLayers.LonLat(strat.last_point.x, strat.last_point.y));
-      this.set_speed(strat.last_point.attributes.speed);
-      this.set_course(strat.last_point.attributes.course);
-      return true;
-    }
+  advance: function(next_cb, finished_cb) {
+    var self = this;
+    var real_advance = function() {
+      var strat = self.strat;
+      strat.time += strat.step;
+      strat.frame_num++;
+      if (strat.time > strat.max_time) {
+        return false;
+      } else {
+        strat.animate();
+        self.map.setCenter(new OpenLayers.LonLat(strat.last_point.x, strat.last_point.y));
+        self.set_speed(strat.last_point.attributes.speed);
+        self.set_course(strat.last_point.attributes.course);
+        self.set_timing(strat.frame_num, strat.time);
+        return true;
+      }
+    };
+
+    /* put the advance function on a timeout so openlayers can get in
+     * and load its tiles */
+    window.setTimeout(function() {
+      if (real_advance()) {
+        next_cb();
+      } else {
+        finished_cb();
+      }
+    }, 1);
   },
 
   start: function() {
@@ -203,16 +258,14 @@ OpenLayers.Layer.Vector.Animate = OpenLayers.Class(OpenLayers.Layer.Vector, {
       return;
     }
 
-    this.interval_id = window.setInterval(function() {
-      if (!self.advance()) {
-        self.stop();
-      }
-    }, this.strat.interval);
+    self.interval_id = window.setInterval(function() {
+      self.advance(function() { }, function() { self.stop(); });
+    }, self.strat.interval);
   },
 
   stop: function() {
     if (this.interval_id) {
-      window.clearInterval(this.interval_id);
+      window.clearTimeout(this.interval_id);
       this.interval_id = null;
     }
   },
@@ -229,6 +282,11 @@ OpenLayers.Layer.Vector.Animate = OpenLayers.Class(OpenLayers.Layer.Vector, {
       "-webkit-transform": rotate,
       "-o-transform": rotate
     });
+  },
+
+  set_timing: function(frame_num, time) {
+    $("#frame").text(frame_num);
+    $("#time").text(time);
   },
 
   CLASS_NAME: "OpenLayers.Layer.Vector.Animate"
@@ -483,7 +541,7 @@ OpenLayers.Strategy.Animate = OpenLayers.Class(OpenLayers.Strategy, {
     // check if interpolation needs to be done for next point
     if (next_point && next_point.attributes && next_point.attributes.time &&
         last_point) {
-      var delta = next_point.attributes.time - this.time - this.interval;
+      var delta = next_point.attributes.time - this.time - this.step;
       if (delta > 0) {
         // linear interpolation
         var f = (this.time - last_point.attributes.time) /

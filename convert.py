@@ -11,104 +11,62 @@ import pygst
 pygst.require('0.10')
 import gst
 
-class BrowserPage(webkit.WebView):
-
-    def __init__(self):
-        webkit.WebView.__init__(self)
-        settings = self.get_settings()
-        # needed to load other resources
-        settings.set_property('enable-file-access-from-file-uris', 1)
-        #settings.set_property("enable-developer-extras", True)
-
-        # scale other content besides from text as well
-        self.set_full_content_zoom(True)
-
-        # make sure the items will be added in the end
-        # hence the reason for the connect_after
-        self.connect_after("populate-popup", self.populate_popup)
-
-    def populate_popup(self, view, menu):
-        # # zoom buttons
-        # zoom_in = gtk.ImageMenuItem(gtk.STOCK_ZOOM_IN)
-        # zoom_in.connect('activate', zoom_in_cb, view)
-        # menu.append(zoom_in)
-
-        # zoom_out = gtk.ImageMenuItem(gtk.STOCK_ZOOM_OUT)
-        # zoom_out.connect('activate', zoom_out_cb, view)
-        # menu.append(zoom_out)
-
-        # zoom_hundred = gtk.ImageMenuItem(gtk.STOCK_ZOOM_100)
-        # zoom_hundred.connect('activate', zoom_hundred_cb, view)
-        # menu.append(zoom_hundred)
-
-        # printitem = gtk.ImageMenuItem(gtk.STOCK_PRINT)
-        # menu.append(printitem)
-        # printitem.connect('activate', print_cb, view)
-
-        # page_properties = gtk.ImageMenuItem(gtk.STOCK_PROPERTIES)
-        # menu.append(page_properties)
-        # page_properties.connect('activate', page_properties_cb, view)
-
-        # menu.append(gtk.SeparatorMenuItem())
-
-        # aboutitem = gtk.ImageMenuItem(gtk.STOCK_ABOUT)
-        # menu.append(aboutitem)
-        # aboutitem.connect('activate', about_pywebkitgtk_cb, view)
-
-        menu.show_all()
-        return False
-
 class WebBrowser(gtk.Window):
 
     def __init__(self):
         gtk.Window.__init__(self)
 
+        self.width = 640
+        self.height = 360
+        self.framerate = 30000.0 / 1001.0
+        self.frameratestr = "30000/1001"
+        self.speedup = 2.0
+
         self.frame_num = 0
 
-        view = BrowserPage()
+        view = webkit.WebView()
+
+        # needed to load other resources
+        settings = view.get_settings()
+        settings.set_property('enable-file-access-from-file-uris', 1)
 
         #view.connect("hovering-over-link", self._hovering_over_link_cb)
         view.connect("load-finished", self._view_load_finished_cb)
         view.connect("title-changed", self._title_changed_cb)
 
-        self.add(view)
+        view.set_size_request(self.width, self.height)
+
+        alignment = gtk.Alignment(0.0, 0.0, 0.0, 0.0)
+        alignment.add(view)
+        self.add(alignment)
 
         #vbox = gtk.VBox(spacing=1)
         #vbox.pack_start(toolbar, expand=False, fill=False)
         #vbox.pack_start(content_tabs)
         #self.add(vbox)
 
-        self.set_default_size(800, 600)
         self.connect('destroy', destroy_cb)
 
         self.show_all()
 
-        film_framerate = 29.970030
-        speedup = 2.0
-
         self.pipeline, self.snapsrc = gst_pipeline(view, "capture.ogg")
 
-        # if not url:
-        #     view.load_string(ABOUT_PAGE, "text/html", "iso-8859-15", "about")
-        # else:
-        #     view.load_uri(url)
-
-        # 33.366666633 interval -- realtime
-        # 134.68013468
         path = os.path.abspath(os.path.dirname(__file__))
         loc = "file://%s/index.html" % path
-        print "loc = %s" % loc
         args = {
             "embed": 1,
             "track": "synth.gpx",
             "layer": "M",
             "z": 16,
-            #"interval": 500,
-            #"step": 134.68013468,
-            "interval": 100,
-            "step": 4000,
+            "step": self.speedup * 1000.0 / self.framerate,
+            "width": self.width,
+            "height": self.height,
+            "pilot": 0,
+            "track_colour": "red",
             }
-        view.load_uri("%s?%s" % (loc, urllib.urlencode(args)))
+        uri = "%s?%s" % (loc, urllib.urlencode(args))
+        print "loading: %s" % uri
+        view.load_uri(uri)
 
     def _view_load_finished_cb(self, view, frame):
         # title = frame.get_title()
@@ -131,10 +89,13 @@ class WebBrowser(gtk.Window):
             else:
                 print "*** bugger: couldn't call %s" % msg["msg"]
 
-    def execute(self, view, script):
+    def execute(self, view, script, timeout=None):
         def idle_execute_script():
             view.execute_script(script)
-        gobject.idle_add(idle_execute_script)
+        if timeout is None:
+            gobject.idle_add(idle_execute_script)
+        else:
+            gobject.timeout_add(timeout, idle_execute_script)
 
     def _msg_loaded(self, view):
         print "loaded"
@@ -145,16 +106,17 @@ class WebBrowser(gtk.Window):
         begin()
 
     def _msg_frame(self, view):
-        print "frame %d" % self.frame_num
-        self.get_screenshot(view, self.frame_num)
+        #print "Frame %d" % self.frame_num
+        self.get_screenshot(view, self.frame_num * 1000 / self.framerate)
         self.frame_num += 1
-        self.execute(view, "Animate.advance();")
+        self.execute(view, "Animate.advance();", 100)
 
     def _msg_finished(self, view):
         print "finished"
         self.pipeline.set_state(gst.STATE_NULL)
+        destroy_cb(self)
 
-    def get_screenshot(self, widget, frame_num=None):
+    def get_screenshot(self, widget, time_ms):
         if widget.get_realized():
             snapshot = widget.get_snapshot()
             w, h = snapshot.get_size()
@@ -162,7 +124,7 @@ class WebBrowser(gtk.Window):
             pixbuf.get_from_drawable(snapshot, widget.get_colormap(),
                                      0, 0, 0, 0, w, h)
             #pixbuf.save(self.frame_filename(frame_num), "png")
-            self.snapsrc.add_snapshot(pixbuf)
+            self.snapsrc.add_snapshot(pixbuf, time_ms)
 
     @staticmethod
     def frame_filename(frame_num):
@@ -181,7 +143,6 @@ def destroy_cb(window):
     window.pipeline.set_state(gst.STATE_NULL)
     window.destroy()
     gtk.main_quit()
-
 
 class SnapshotSource(gst.Element):
 
@@ -224,12 +185,12 @@ class SnapshotSource(gst.Element):
         # self.add_pad(self.srcpad)
         # #self.add_pad(self.sinkpad)
 
-    def add_snapshot(self, pixbuf, time):
+    def add_snapshot(self, pixbuf, time_ms):
         self.width = pixbuf.get_width()
         self.height = pixbuf.get_height()
-        print "Pushing %dx%d snapshot to source" % (self.width, self.height)
+        #print "Pushing %dx%d snapshot to source" % (self.width, self.height)
         buf = gst.Buffer(pixbuf.get_pixels())
-        #buffer.timestamp = timestamp
+        buf.timestamp = int(round(time_ms * gst.MSECOND))
         # Don't forget to set the right caps on the buffer
         self.set_caps_on(buf)
         src = self.get_static_pad("src")
@@ -249,10 +210,9 @@ class SnapshotSource(gst.Element):
                                      endianness=4321,\
                                      framerate=30000/1001,\
                                      width=%d,height=%d" \
-                                        % (self.width,
-                                           self.height))
+                                        % (self.width, self.height))
         if dest:
-            dest.set_caps(cap)s
+            dest.set_caps(caps)
 
     def _src_setcaps(self, pad, caps):
         #we negotiate our capabilities here, this function is called
@@ -276,16 +236,14 @@ def gst_pipeline(widget, outfile=None):
 
     # first create individual gstreamer elements
 
-    #source = gst.element_factory_make("videotestsrc")
-    print "making new element"
     snapsrc = SnapshotSource()
-    print "made new element"
     vscale = gst.element_factory_make("videoscale")
     cspace = gst.element_factory_make("ffmpegcolorspace")
 
     elements = [snapsrc, vscale, cspace]
 
     if outfile:
+        print "recording to %s" % outfile
         videorate = gst.element_factory_make("videorate")
         theoraenc = gst.element_factory_make("theoraenc")
         oggmux = gst.element_factory_make("oggmux")
