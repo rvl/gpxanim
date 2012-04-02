@@ -177,6 +177,12 @@ $rotated-size: 735px;
   }
 }
 
+#counter {
+  text-align: right;
+  font-family: monospace;
+  padding: 0em 0.5em;
+  width: 20em;
+}
 
 .rotated {
   //border: 1px solid green;

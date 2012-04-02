@@ -135,6 +135,7 @@ var Animate = (function($) {
     if (embed) {
       $("body").children().not(".clipper").hide();
       $(".clipper, body").addClass("embed");
+      $("#counter").show();
     }
   };
 
@@ -152,11 +153,21 @@ var Animate = (function($) {
       .css("position", "relative");
   };
 
+  var setup_counter = function() {
+    var $cont = $(".clipper"), $el = $("#counter");
+    var pos = $cont.position();
+    
+    $el.css({ "position": "absolute",
+              "left": pos.left + $cont.width() - $el.outerWidth(),
+              "top": pos.top + $cont.height() - $el.outerHeight() });
+  };
+
   var ready_basic = function() {
     map_init();
     setup_buttons();
     setup_embed(embed);
     setup_size(width, height);
+    setup_counter();
   };
 
   var send = function(msg, object) {
@@ -183,7 +194,7 @@ var Animate = (function($) {
 
   var send_frame = function() {
     var layer = map.baseLayer;
-    if (layer.numLoadingTiles == 0) {
+    if (!layer.numLoadingTiles) {
       send("frame");
     } else {
       console.log("waiting for " + layer.numLoadingTiles + " tiles to load");
@@ -235,7 +246,7 @@ OpenLayers.Layer.Vector.Animate = OpenLayers.Class(OpenLayers.Layer.Vector, {
         self.map.setCenter(new OpenLayers.LonLat(strat.last_point.x, strat.last_point.y));
         self.set_speed(strat.last_point.attributes.speed);
         self.set_course(strat.last_point.attributes.course);
-        self.set_timing(strat.frame_num, strat.time);
+        self.set_timing(strat.frame_num, strat.time - strat.min_time);
         return true;
       }
     };
@@ -286,7 +297,7 @@ OpenLayers.Layer.Vector.Animate = OpenLayers.Class(OpenLayers.Layer.Vector, {
 
   set_timing: function(frame_num, time) {
     $("#frame").text(frame_num);
-    $("#time").text(time);
+    $("#time").text(Math.round(time));
   },
 
   CLASS_NAME: "OpenLayers.Layer.Vector.Animate"
@@ -493,6 +504,33 @@ OpenLayers.Strategy.Animate = OpenLayers.Class(OpenLayers.Strategy, {
     this.features = null;
   },
 
+  angle_lerp: function(a, b, f) {
+    var norm2 = function(angle, mod, min, max) {
+      while (angle < 0.0)
+        angle += 360.0;
+      while (angle >= 360.0)
+        angle -= 360.0;
+      return angle;
+    };
+    var norm = function(angle) {
+      return norm2(angle, 360.0, 0.0, 360.0);
+    };
+    var dnorm = function(angle) {
+      return norm2(angle, 180.0, 0.0, 180.0);
+    };
+    var diff, dir;
+
+    a = norm(a);
+    b = norm(b);
+    diff = b - a;
+    if (diff >= 180.0 || diff < 0.0) {
+      // interp in the reverse direction if that would be shorter
+      diff = -dnorm(-diff);
+    }
+
+    return norm(a + diff * f);
+  },
+
   /**
    * Method: animate
    * Filter features based on some time threshold.
@@ -517,7 +555,7 @@ OpenLayers.Strategy.Animate = OpenLayers.Class(OpenLayers.Strategy, {
           //console.log("adding point " + point.attributes.time);
           new_points.push(point);
           self.last_point = point;
-          last_point = point;
+          self.last_real_point = point;
         } else {
           next_point = point;
           return false;
@@ -531,30 +569,28 @@ OpenLayers.Strategy.Animate = OpenLayers.Class(OpenLayers.Strategy, {
 
     current_index = self.points.length - self.rest.length - 1;
 
-    if (!last_point) {
-      var num_points = this.animation.geometry.components.length;
-      if (num_points > 0) {
-        last_point = this.animation.geometry.components[num_points - 1];
-      }
-    }
+    last_point = self.last_real_point;
 
     // check if interpolation needs to be done for next point
     if (next_point && next_point.attributes && next_point.attributes.time &&
         last_point) {
-      var delta = next_point.attributes.time - this.time - this.step;
+      //var delta = next_point.attributes.time - this.time - this.step;
+      var delta = this.time - last_point.attributes.time;
       if (delta > 0) {
         // linear interpolation
-        var f = (this.time - last_point.attributes.time) /
+        var f = delta /
           (next_point.attributes.time - last_point.attributes.time);
         var twerp = last_point.clone();
-        //console.log("interpolating " + this.time + " delta=" + delta + " f=" + f);
-        //console.log("time=" + this.time + ", last=" + last_point.attributes.time + ", next=" + next_point.attributes.time);
+        //console.log("interpolating time=" + this.time + ", delta=" + delta + " f=" + f + ", last=" + last_point.attributes.time + ", next=" + next_point.attributes.time + ", step=" + this.step);
         //console.log("before=" + (last_point.attributes.time - this.time) + " after=" + (next_point.attributes.time - this.time));
 
         twerp.x += f * (next_point.x - last_point.x);
         twerp.y += f * (next_point.y - last_point.y);
+        twerp.attributes.course = this.angle_lerp(last_point.attributes.course, next_point.attributes.course, f);
         new_points.push(twerp);
         this.last_point = twerp;
+      } else {
+        //console.log("not interpolating: delta=" + delta);
       }
     }
 

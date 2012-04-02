@@ -20,7 +20,7 @@ class WebBrowser(gtk.Window):
         self.height = 360
         self.framerate = 30000.0 / 1001.0
         self.frameratestr = "30000/1001"
-        self.speedup = 2.0
+        self.speedup = 8.0
 
         self.frame_num = 0
 

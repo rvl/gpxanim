@@ -162,6 +162,12 @@ body {
   .clipper.embed {
     border: 0; }
 
+#counter {
+  text-align: right;
+  font-family: monospace;
+  padding: 0em 0.5em;
+  width: 20em; }
+
 .rotated {
   width: 735px;
   height: 735px;
