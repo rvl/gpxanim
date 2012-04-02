@@ -8,6 +8,8 @@ direction of travel is always "up".
 
 The track is interpolated to achieve smooth animation.
 
+Here is an example of its output: http://youtu.be/7-tOJGSVWkc
+
 
 How it works
 ------------
@@ -27,7 +29,7 @@ How it works
 How to use
 ----------
 
-First, get your track in GPX format. It would be course to have
+First, get your track in GPX format. It would be better to have
 correct speed and course values for the trackpoints. You can use
 [GPSBabel][] to calculate the values:
 
@@ -51,8 +53,6 @@ Required packages (Debian/Ubuntu)
 
     apt-get install python python-gtk2 python-webkit python-gst0.10 gstreamer0.10-ffmpeg
 
-Links
------
 
 [OpenLayers]: http://www.openlayers.org/
 [WebKitGTK]: http://webkitgtk.org/
