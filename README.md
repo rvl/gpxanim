@@ -25,7 +25,12 @@ How it works
 
 4.  Every frame, a screenshot is captured of the map and fed into a
     [GStreamer][] pipeline which creates an [Ogg Theora][] video file.
-    
+
+[OpenLayers]: http://www.openlayers.org/
+[WebKitGTK]: http://webkitgtk.org/
+[GStreamer]: http://gstreamer.freedesktop.org/
+[Ogg Theora]: http://www.theora.org/
+
 How to use
 ----------
 
@@ -37,25 +42,21 @@ correct speed and course values for the trackpoints. You can use
         -x track,course -x track,speed \
         -o gpx -F synth.gpx
 
-The filenames and settings are hard-coded into the python script
-`convert.py`, so if you would like to change them, you will need to
-edit the file. The settings around lines 19 and 56.
-
 Then run
 
-    python convert.py
+    python convert.py synth.gpx
 
 and it will start animating. It's not very fast unfortunately. At the
-end you will have a video, called `capture.ogg` by default.
+end you will have a video, called `synth.ogg` by default.
+
+To see the full list of options, run
+
+    python convert.py --help
+
+[GPSBabel]: http://www.gpsbabel.org/
+
 
 Required packages (Debian/Ubuntu)
 ---------------------------------
 
-    apt-get install python python-gtk2 python-webkit python-gst0.10 gstreamer0.10-ffmpeg
-
-
-[OpenLayers]: http://www.openlayers.org/
-[WebKitGTK]: http://webkitgtk.org/
-[GStreamer]: http://gstreamer.freedesktop.org/
-[Ogg Theora]: http://www.theora.org/
-[GPSBabel]: http://www.gpsbabel.org/
+    apt-get install python python-gtk2 python-webkit python-gst0.10 gstreamer0.10-ffmpeg gpsbabel gpsbabel-doc

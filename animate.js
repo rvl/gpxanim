@@ -30,11 +30,17 @@ var Animate = (function($) {
   pilot = parseInt(urlparams.pilot) ? true : false;
   track_colour = urlparams.track_colour || "#69C";
   pilot_colour = urlparams.pilot_colour || "#808080";
+  track_opacity = parseFloat(urlparams.track_opacity) || 0.6;
+  pilot_opacity = parseFloat(urlparams.pilot_opacity) || 0.5;
+  track_width = parseFloat(urlparams.track_width) || 5;
+  pilot_width = parseFloat(urlparams.pilot_width) || 5;
 
   var create_gpx_layer = function(name, url, colour) {
     var lgpx = new OpenLayers.Layer.GML(name, url, {
       format: OpenLayers.Format.GPX,
-      style: {strokeColor: colour, strokeWidth: 5, strokeOpacity: 0.5},
+      style: { strokeColor: colour,
+               strokeWidth: pilot_width,
+               strokeOpacity: pilot_opacity },
       projection: new OpenLayers.Projection("EPSG:4326")
     });
     return lgpx;
@@ -59,7 +65,9 @@ var Animate = (function($) {
 	  extractWaypoints: false
         })
       }),
-      style: {strokeColor: colour, strokeWidth: 5, strokeOpacity: 0.6},
+      style: { strokeColor: colour,
+               strokeWidth: track_width,
+               strokeOpacity: track_opacity },
       projection: new OpenLayers.Projection("EPSG:4326")
     });
 
