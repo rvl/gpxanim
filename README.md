@@ -44,14 +44,14 @@ correct speed and course values for the trackpoints. You can use
 
 Then run
 
-    python convert.py synth.gpx
+    python gpxanim.py synth.gpx
 
 and it will start animating. It's not very fast unfortunately. At the
 end you will have a video, called `synth.ogg` by default.
 
 To see the full list of options, run
 
-    python convert.py --help
+    python gpxanim.py --help
 
 [GPSBabel]: http://www.gpsbabel.org/
 

@@ -164,7 +164,7 @@ class MapWindow(gtk.Window):
                                                    options.framerate)
 
         path = os.path.abspath(os.path.dirname(__file__))
-        loc = "file://%s/index.html" % path
+        loc = "file://%s/gpxanim.html" % path
         args = {
             "embed": 1,
             "track": options.gpx_file,
