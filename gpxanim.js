@@ -24,7 +24,7 @@ var Animate = (function($) {
   step = parseFloat(urlparams.step) || 1000; // number of ms to advance each frame
   interval = parseInt(urlparams.interval) || step; // ms interval between updates
   skip = parseInt(urlparams.skip) || 0;
-  embed = urlparams.embed || false;
+  embed = parseInt(urlparams.embed) || false;
   width = urlparams.width || 640;
   height = urlparams.height || 360;
   pilot = parseInt(urlparams.pilot) ? true : false;
@@ -34,6 +34,7 @@ var Animate = (function($) {
   pilot_opacity = parseFloat(urlparams.pilot_opacity) || 0.5;
   track_width = parseFloat(urlparams.track_width) || 5;
   pilot_width = parseFloat(urlparams.pilot_width) || 5;
+  show_counter = parseInt(urlparams.show_counter) ? true : false
 
   var create_gpx_layer = function(name, url, colour) {
     var lgpx = new OpenLayers.Layer.GML(name, url, {
@@ -161,13 +162,14 @@ var Animate = (function($) {
       .css("position", "relative");
   };
 
-  var setup_counter = function() {
+  var setup_counter = function(show) {
     var $cont = $(".clipper"), $el = $("#counter");
     var pos = $cont.position();
     
     $el.css({ "position": "absolute",
               "left": pos.left + $cont.width() - $el.outerWidth(),
-              "top": pos.top + $cont.height() - $el.outerHeight() });
+              "top": pos.top + $cont.height() - $el.outerHeight() })
+      .toggle(show);
   };
 
   var ready_basic = function() {
@@ -175,7 +177,7 @@ var Animate = (function($) {
     setup_buttons();
     setup_embed(embed);
     setup_size(width, height);
-    setup_counter();
+    setup_counter(show_counter);
   };
 
   var send = function(msg, object) {

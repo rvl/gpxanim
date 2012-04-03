@@ -31,6 +31,12 @@ def parse_options():
     parser.add_option("--height", dest="height",
                       help="animation height (default %default)",
                       default=360, action="store", type="int")
+    parser.add_option("--counter", dest="counter",
+                      help="show the time and a frame counter",
+                      action="store_true")
+    parser.add_option("--skip", dest="skip", metavar="SECONDS",
+                      help="start animation at a later time (value is in real seconds)",
+                      default=0, action="store", type="float")
     parser.add_option("-z", "--zoom", dest="zoom",
                       help="map zoom (default %default)",
                       default=16, action="store", type="int")
@@ -68,9 +74,6 @@ def parse_options():
     parser.add_option("-p", "--pilot",
                       action="store_true", dest="pilot", default=False,
                       help="draw a pilot track before the animation")
-    parser.add_option("-q", "--quiet",
-                      action="store_false", dest="verbose", default=True,
-                      help="don't print status messages to stdout")
 
     (options, args) = parser.parse_args()
 
@@ -167,6 +170,8 @@ class MapWindow(gtk.Window):
             "step": self.speedup * 1000.0 / self.framerate,
             "width": self.width,
             "height": self.height,
+            "show_counter": "1" if options.counter else "0",
+            "skip": options.skip,
             "pilot": "1" if options.pilot else "0",
             "track_colour": options.track_colour,
             "track_width": options.track_width,
@@ -208,7 +213,7 @@ class MapWindow(gtk.Window):
     def _msg_frame(self, view):
         self.get_screenshot(view, self.frame_num * 1000 / self.framerate)
         self.frame_num += 1
-        self.execute(view, "Animate.advance();", 100)
+        self.execute(view, "Animate.advance();", 10)
 
     def _msg_finished(self, view):
         print "finished"
