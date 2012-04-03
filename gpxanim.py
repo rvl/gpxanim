@@ -85,7 +85,6 @@ def parse_options():
     options.base_layer = options_check_base_layer(parser, options)
     options.framerate_float = options_parse_framerate(parser, options.framerate)
 
-    print "options are: %s" % str(options)
     return options
 
 def options_outfilename(infilename):
@@ -124,9 +123,10 @@ pygst.require('0.10')
 import gst
 
 class MapWindow(gtk.Window):
-
     def __init__(self, options):
         gtk.Window.__init__(self)
+
+        self.set_title("GPX Animator")
 
         self.width = options.width
         self.height = options.height
@@ -141,8 +141,7 @@ class MapWindow(gtk.Window):
         settings = view.get_settings()
         settings.set_property('enable-file-access-from-file-uris', 1)
 
-        #view.connect("hovering-over-link", self._hovering_over_link_cb)
-        view.connect("load-finished", self._view_load_finished_cb)
+        #view.connect("load-finished", self._view_load_finished_cb)
         view.connect("title-changed", self._title_changed_cb)
 
         view.set_size_request(self.width, self.height)
@@ -150,11 +149,6 @@ class MapWindow(gtk.Window):
         alignment = gtk.Alignment(0.0, 0.0, 0.0, 0.0)
         alignment.add(view)
         self.add(alignment)
-
-        #vbox = gtk.VBox(spacing=1)
-        #vbox.pack_start(toolbar, expand=False, fill=False)
-        #vbox.pack_start(content_tabs)
-        #self.add(vbox)
 
         self.connect('destroy', destroy_cb)
 
@@ -185,15 +179,7 @@ class MapWindow(gtk.Window):
         print "loading: %s" % uri
         view.load_uri(uri)
 
-    def _view_load_finished_cb(self, view, frame):
-        # title = frame.get_title()
-        # if not title:
-        #     title = frame.get_uri()
-        # self.set_title("PyWebKitGtk - %s" % title)
-        self.set_title("Converter")
-
     def _title_changed_cb(self, view, frame, title):
-        #self._view_load_finished_cb(view, frame)
         try:
             msg = json.loads(frame.get_title())
         except ValueError:
@@ -215,15 +201,11 @@ class MapWindow(gtk.Window):
             gobject.timeout_add(timeout, idle_execute_script)
 
     def _msg_loaded(self, view):
-        print "loaded"
-        self.execute(view, "console.log('hello, world!');")
         def begin():
             self.execute(view, "Animate.advance();")
-        #gobject.timeout_add(2000, begin)
         begin()
 
     def _msg_frame(self, view):
-        #print "Frame %d" % self.frame_num
         self.get_screenshot(view, self.frame_num * 1000 / self.framerate)
         self.frame_num += 1
         self.execute(view, "Animate.advance();", 100)
@@ -282,25 +264,6 @@ class SnapshotSource(gst.Element):
         self.src_pad.use_fixed_caps()
         self.add_pad(self.src_pad)
  
-    def nonono__init__(self, widget):   
-        #initialise parent class
-        #gst.Element.__init__(self, *args, **kwargs)
-        self.__gobject_init__()
-
-        self.widget = widget
-
-        # #source pad, outgoing data
-        # self.srcpad = gst.Pad(self._srctemplate)
-        # self.srcpad.set_setcaps_function(self._src_setcaps)
-        # self.srcpad.set_chain_function(self._src_chain)
-        
-        # #sink pad, incoming data
-        # #self.sinkpad = gst.Pad(self._sinktemplate)
-        
-        # #make pads available
-        # self.add_pad(self.srcpad)
-        # #self.add_pad(self.sinkpad)
-
     def add_snapshot(self, pixbuf, time_ms):
         self.width = pixbuf.get_width()
         self.height = pixbuf.get_height()
@@ -343,8 +306,6 @@ class SnapshotSource(gst.Element):
         # it was either successful or not.
         return self.srcpad.push(buf)
 
-#here we register our class with glib, the c-based object system used by
-#gstreamer
 gobject.type_register(SnapshotSource)
 
 def gst_pipeline(widget, outfile=None, framerate=None):
