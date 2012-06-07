@@ -84,6 +84,10 @@ def parse_options():
         parser.error("You must specify a single input GPX file")
 
     options.gpx_file = args[0]
+
+    if not os.path.exists(options.gpx_file):
+        parser.error("%s doesn't exist or is inaccessible" % options.gpx_file)
+
     options.outfile = options.outfile or options_outfilename(options.gpx_file)
     options.base_layer = options_check_base_layer(parser, options)
     options.framerate_float = options_parse_framerate(parser, options.framerate)
